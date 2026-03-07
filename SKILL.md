@@ -1,58 +1,142 @@
 ---
 name: apple-mail
-description: Apple Mail.app integration for macOS. Read inbox, search emails, send emails, reply, and manage messages with fast direct access (no enumeration).
-metadata: {"bot":{"emoji":"📧","os":["darwin"],"requires":{"bins":["sqlite3"]}}}
+description: Apple Mail.app integration via AppleScript. Works reliably without special permissions. Read inbox, search emails, send emails, reply, manage messages, download attachments, and save emails.
+metadata: {"bot":{"emoji":"📧","os":["darwin"]}}
 ---
 
 # Apple Mail
 
-Interact with Mail.app via AppleScript and SQLite. Run scripts from: `cd {baseDir}`
+**Apple Mail integration using AppleScript. No special permissions required.**
+
+## Quick Start
+
+```bash
+cargo build --release
+./target/release/apple-mail <command>
+```
 
 ## Commands
 
-| Command | Usage |
-|---------|-------|
-| **Refresh** | `scripts/mail-refresh.sh [account] [wait_seconds]` |
-| List recent | `scripts/mail-list.sh [mailbox] [account] [limit]` |
-| Search | `scripts/mail-search.sh "query" [mailbox] [limit]` |
-| Fast search | `scripts/mail-fast-search.sh "query" [limit]` |
-| Read email | `scripts/mail-read.sh <message-id> [message-id...]` |
-| Delete | `scripts/mail-delete.sh <message-id> [message-id...]` |
-| Mark read | `scripts/mail-mark-read.sh <message-id> [message-id...]` |
-| Mark unread | `scripts/mail-mark-unread.sh <message-id> [message-id...]` |
-| Send | `scripts/mail-send.sh "to@email.com" "Subject" "Body" [from-account] [attachment]` ¹ |
-| Reply | `scripts/mail-reply.sh <message-id> "body" [reply-all]` |
-| List accounts | `scripts/mail-accounts.sh` |
-| List mailboxes | `scripts/mail-mailboxes.sh [account]` |
+| Command | Usage | Description |
+|---------|-------|-------------|
+| **Launch** | `launch` | Launch Mail.app |
+| **Check Status** | `is-running` | Check if Mail.app is running |
+| **Unread Count** | `unread-count` | Get total unread messages |
+| **Unread Period** | `unread-count-period --hours 24` | Unread in time period |
+| **Messages Period** | `messages-period --hours 48` | List messages from time period |
+| **Mailboxes** | `mailboxes` | List all mailboxes |
+| **Accounts** | `accounts` | List all accounts |
+| **List** | `list [mailbox] [-a account] [-l limit]` | List recent messages |
+| **Search** | `search "query"` | Search messages by subject/sender |
+| **Read** | `read <message-id>` | Read specific message |
+| **Compose** | `compose --to "email" --subject "subj" --body "text"` | Send new email |
+| **Reply** | `reply <message-id> --body "text"` | Reply to message |
+| **Mark Read** | `mark-read <id1> <id2>` | Mark as read (batch) |
+| **Mark Unread** | `mark-unread <id1>` | Mark as unread |
+| **Delete** | `delete <id1> <id2>` | Delete messages (batch) |
+| **Refresh** | `refresh [account]` | Refresh mailboxes |
+| **Download Attachments** | `download-attachments <message-id> <directory>` | Download attachments |
+| **Download All Parts** | `download-all-parts <message-id> <directory>` | Extract all MIME parts (inline + attached) |
+| **Save Email** | `save-email <message-id> <file-path>` | Save email to file |
+| **Selection** | `selection` | Get currently selected message |
 
-## Refreshing Mail
+## Examples
 
-Force Mail.app to check for new messages:
-
+### List Recent Messages
 ```bash
-scripts/mail-refresh.sh                    # All accounts, wait up to 10s
-scripts/mail-refresh.sh Google             # Specific account only
-scripts/mail-refresh.sh "" 5               # All accounts, max 5 seconds
-scripts/mail-refresh.sh Google 0           # Google account, no wait
+./target/release/apple-mail list
+./target/release/apple-mail list INBOX -l 10
+./target/release/apple-mail list INBOX -a "Gmail" -l 5
 ```
 
-**Smart sync detection:**
-- Script monitors database message count
-- Returns early when sync completes (no changes for 2s)
-- Reports new message count: `Sync complete in 2s (+3 messages)`
+### Search Messages
+```bash
+./target/release/apple-mail search "meeting"
+./target/release/apple-mail search "john@example.com"
+```
 
-**Notes:**
-- Mail.app must be running (script will error if not)
-- `mail-list.sh` does NOT auto-refresh — call `mail-refresh.sh` first if you need fresh data
+### Read a Message
+```bash
+./target/release/apple-mail read 12345
+```
+
+### Compose New Email
+```bash
+./target/release/apple-mail compose \
+    --to "colleague@company.com" \
+    --subject "Project Update" \
+    --body "Hi, here is the update..."
+```
+
+### Reply to Message
+```bash
+./target/release/apple-mail reply 12345 --body "Thanks!"
+```
+
+### Mark Multiple as Read
+```bash
+./target/release/apple-mail mark-read 12345 12346 12347
+```
+
+### Download Attachments
+```bash
+./target/release/apple-mail download-attachments 12345 ~/Downloads/
+```
+
+### Download All MIME Parts (inline + attached)
+```bash
+./target/release/apple-mail download-all-parts 12345 ~/Downloads/
+```
+
+`download-all-parts` parses the raw MIME source and extracts all non-text parts, including inline images and signatures that `download-attachments` may miss. Output includes disposition, content-type, and size for each part.
+
+### Save Email to File
+```bash
+./target/release/apple-mail save-email 12345 ~/Documents/email.txt
+```
+
+### Time Period Queries
+```bash
+# Unread in last 24 hours
+./target/release/apple-mail unread-count-period --hours 24
+
+# Unread in last 7 days
+./target/release/apple-mail unread-count-period --days 7
+
+# Messages from last 48 hours
+./target/release/apple-mail messages-period --hours 48 -l 50
+```
+
+### Refresh Mailboxes
+```bash
+./target/release/apple-mail refresh
+./target/release/apple-mail refresh "Gmail"
+```
 
 ## Output Format
 
-List/search returns: `ID | ReadStatus | Date | Sender | Subject`
+List/search returns: `ID | ReadStatus | Date | Sender | Subject | Att:N`
 - `●` = unread, blank = read
+- `Att:N` = number of attachments
+
+Example:
+```
+12345 | ● | Sat, 7 Mar 2026 10:30:00 | John Smith | Project Update | Att:2
+12346 |   | Sat, 7 Mar 2026 09:15:00 | Jane Doe | Meeting Notes | Att:0
+```
+
+## Batch Operations
+
+Multiple message IDs can be passed to mark-read, mark-unread, and delete:
+
+```bash
+./target/release/apple-mail mark-read 10001 10002 10003
+./target/release/apple-mail delete 10001 10002 10003
+```
 
 ## Gmail Mailboxes
 
-⚠️ Gmail special folders need `[Gmail]/` prefix:
+Gmail special folders need `[Gmail]/` prefix:
 
 | Shows as | Use |
 |----------|-----|
@@ -63,103 +147,43 @@ List/search returns: `ID | ReadStatus | Date | Sender | Subject`
 
 Custom labels work without prefix.
 
-## Fast Search (SQLite)
+## Time Period Options
 
-✨ **Now safe even if Mail.app is running** — copies database to temp file first.
+Commands that support time periods:
 
-```bash
-scripts/mail-fast-search.sh "query" [limit]  # ~50ms vs minutes
-```
-
-Previously required Mail.app to be quit. Now works anytime by copying the database to a temp file before querying.
-
-## Performance Notes
-
-**Speed by operation:**
-| Operation | Speed | Notes |
-|-----------|-------|-------|
-| `mail-fast-search.sh` | ~50ms | SQLite query, fastest |
-| `mail-accounts.sh` | <1s | Simple AppleScript |
-| `mail-list.sh` | 1-3s | AppleScript, direct mailbox access |
-| `mail-send.sh` | 1-2s | Creates and sends message |
-| `mail-read.sh` | ~2s | Position-optimized lookup |
-| `mail-delete.sh` | ~0.5s | Position-optimized lookup |
-| `mail-mark-*.sh` | ~1.5s | Position-optimized lookup |
-
-**Optimization technique:**
-SQLite provides account UUID and approximate message position. AppleScript jumps directly to that position instead of iterating from the start.
-
-**Batch operations supported:**
-- `mail-read.sh 123 456 789` - Read multiple (separator between each)
-- `mail-delete.sh 123 456 789` - Delete multiple
-- `mail-mark-read.sh 123 456` - Mark multiple as read
-- `mail-mark-unread.sh 123 456` - Mark multiple as unread
-
-**⚠️ No auto-refresh:** Scripts read cached data. Call `mail-refresh.sh` first if you need latest emails.
-
-## Managing Emails
-
-**Delete emails:**
-```bash
-scripts/mail-delete.sh 12345                    # Delete one
-scripts/mail-delete.sh 12345 12346 12347        # Delete multiple
-```
-
-**Mark as read/unread:**
-```bash
-scripts/mail-mark-read.sh 12345 12346           # Mark as read
-scripts/mail-mark-unread.sh 12345               # Mark as unread
-```
-
-**Bulk operations example:**
-```bash
-# Find spam emails
-scripts/mail-fast-search.sh "spam" 50 > spam.txt
-
-# Extract IDs and delete them
-grep "^[0-9]" spam.txt | cut -d'|' -f1 | xargs scripts/mail-delete.sh
-```
-
-## Reading Email Bodies
-
-```bash
-scripts/mail-read.sh 12345              # Single email
-scripts/mail-read.sh 12345 12346 12347  # Multiple emails (separated output)
-```
-
-Uses position-optimized lookup (~2s per message). Multiple emails are separated by `========` with a summary at the end.
-
-## Errors
-
-| Error | Cause |
-|-------|-------|
-| `Mail.app is not running` | Open Mail.app before running scripts |
-| `Account not found` | Invalid account — check mail-accounts.sh |
-| `Message not found` | Invalid/deleted ID — get fresh from mail-list.sh |
-| `Can't get mailbox` | Invalid name — check mail-mailboxes.sh |
-| `Mail database not found` | SQLite DB missing — check ~/Library/Mail/V{9,10,11}/MailData/ |
+- `--hours <n>` - Look back n hours (e.g., 24, 12, 6)
+- `--days <n>` - Look back n days (e.g., 7, 30, 90)
 
 ## Technical Details
 
-**Database:** `~/Library/Mail/V{9,10,11}/MailData/Envelope Index`
+- All operations use AppleScript - no direct database access required
+- Works without Full Disk Access or special permissions
+- Reliable on modern macOS (14.0+)
+- Single Rust binary, no external dependencies at runtime
 
-**Message lookup method (optimized):**
-1. Query SQLite for account UUID, mailbox path, and approximate position
-2. AppleScript accesses the specific account directly (no iteration)
-3. Search starts at the approximate position (±5 messages buffer)
-4. Falls back to full mailbox search only if position hint fails
+## Error Handling
 
-**Safety:**
-- Fast search copies database to temp file before querying
-- Safe to use even if Mail.app is running
-- Delete/read/mark operations query live database but access is minimal
+| Error | Cause | Solution |
+|-------|-------|----------|
+| Mail.app not running | Mail.app needs to be open | Run `launch` first |
+| Message not found | Invalid ID | Get fresh IDs from `list` or `search` |
+| Permission denied | macOS restriction | AppleScript commands work without extra permissions |
+
+## Performance
+
+| Operation | Speed | Notes |
+|-----------|-------|-------|
+| `unread-count` | <1s | Very fast |
+| `list` | 1-3s | Depends on limit |
+| `search` | 2-5s | Searches last 200 messages |
+| `read` | ~1s | Direct message access |
+| `delete` | ~0.5s | Fast deletion |
+| `mark-read` | ~1s | Quick status update |
 
 ## Notes
 
-- Message IDs are internal, get fresh ones from list/search
-- Confirm recipient before sending
-- AppleScript search is slow but comprehensive; SQLite is fast for metadata
-- Delete/mark operations support bulk actions (pass multiple IDs)
-- Always refresh before listing if you need the absolute latest emails
-
-¹ **Known limitation:** Mail.app adds a leading blank line to sent emails. This is an AppleScript/Mail.app behavior that cannot be bypassed.
+- Message IDs are internal - get fresh ones from `list` or `search`
+- All commands work without special permissions
+- Supports batch operations for efficiency
+- Attachments and email content can be saved to files
+- Compatible with modern macOS privacy protections

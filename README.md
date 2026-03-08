@@ -32,6 +32,7 @@ apple-mail <command> [options]
 | `read` | `read <message-id>` | Read specific message |
 | `compose` | `compose --to "email" --subject "subj" --body "text"` | Send new email |
 | `reply` | `reply <message-id> --body "text" [--reply-all]` | Reply to message |
+| `forward` | `forward <message-id> --to "email" [--body "text"]` | Forward message |
 | `mark-read` | `mark-read <id1> <id2> ...` | Mark as read (batch) |
 | `mark-unread` | `mark-unread <id1> ...` | Mark as unread |
 | `delete` | `delete <id1> <id2> ...` | Delete messages (batch) |
@@ -61,6 +62,10 @@ apple-mail compose --to "user@example.com" --subject "Hi" --body "Hello"
 
 # Reply
 apple-mail reply 12345 --body "Thanks!"
+
+# Forward
+apple-mail forward 12345 --to "colleague@company.com"
+apple-mail forward 12345 --to "colleague@company.com" --body "FYI"
 
 # Batch mark as read
 apple-mail mark-read 12345 12346 12347

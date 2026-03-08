@@ -364,6 +364,40 @@ pub fn reply_to_message(message_id: &str, body: &str, _reply_all: bool) -> Resul
     Ok(())
 }
 
+/// Forward a message to a recipient
+pub fn forward_message(message_id: &str, to: &str, body: &str) -> Result<(), MailError> {
+    let clean_id = message_id.split(':').next().unwrap_or(message_id).trim();
+    let escaped_to = to.replace('"', "\\\"");
+    let escaped_body = body.replace('"', "\\\"");
+
+    let body_insert = if body.is_empty() {
+        String::new()
+    } else {
+        format!(
+            r#"set content of fwdMessage to "{}" & return & return & content of fwdMessage"#,
+            escaped_body
+        )
+    };
+
+    let script = format!(
+        r#"
+        tell application "Mail"
+            activate
+            set originalMessage to first message of inbox whose id is {}
+            set fwdMessage to forward originalMessage with opening window
+            tell fwdMessage
+                make new to recipient at end of to recipients with properties {{address:"{}"}}
+            end tell
+            {}
+        end tell
+    "#,
+        clean_id, escaped_to, body_insert
+    );
+
+    execute_applescript(&script)?;
+    Ok(())
+}
+
 /// Mark a message as read
 pub fn mark_message_as_read(message_id: &str) -> Result<(), MailError> {
     let clean_id = message_id.split(':').next().unwrap_or(message_id).trim();

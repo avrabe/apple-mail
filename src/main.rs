@@ -93,6 +93,17 @@ enum Commands {
         #[arg(long)]
         reply_all: bool,
     },
+    /// Forward a message
+    Forward {
+        /// Message ID to forward
+        message_id: String,
+        /// Recipient email address
+        #[arg(long)]
+        to: String,
+        /// Optional body to prepend
+        #[arg(long, default_value = "")]
+        body: String,
+    },
     /// Mark messages as read
     MarkRead {
         /// Message IDs
@@ -214,6 +225,14 @@ fn main() -> anyhow::Result<()> {
         } => {
             reply_to_message(&message_id, &body, reply_all)?;
             println!("Reply created successfully");
+        }
+        Commands::Forward {
+            message_id,
+            to,
+            body,
+        } => {
+            forward_message(&message_id, &to, &body)?;
+            println!("Message forwarded successfully");
         }
         Commands::MarkRead { message_ids } => {
             let mut success = 0;

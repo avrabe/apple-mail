@@ -31,6 +31,7 @@ cargo build --release
 | **Read** | `read <message-id>` | Read specific message |
 | **Compose** | `compose --to "email" --subject "subj" --body "text"` | Send new email |
 | **Reply** | `reply <message-id> --body "text"` | Reply to message |
+| **Forward** | `forward <message-id> --to "email" [--body "text"]` | Forward message |
 | **Mark Read** | `mark-read <id1> <id2>` | Mark as read (batch) |
 | **Mark Unread** | `mark-unread <id1>` | Mark as unread |
 | **Delete** | `delete <id1> <id2>` | Delete messages (batch) |
@@ -71,6 +72,12 @@ cargo build --release
 ### Reply to Message
 ```bash
 ./target/release/apple-mail reply 12345 --body "Thanks!"
+```
+
+### Forward a Message
+```bash
+./target/release/apple-mail forward 12345 --to "someone@example.com"
+./target/release/apple-mail forward 12345 --to "someone@example.com" --body "FYI, see below."
 ```
 
 ### Mark Multiple as Read

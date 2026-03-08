@@ -352,7 +352,8 @@ pub fn reply_to_message(message_id: &str, body: &str, _reply_all: bool) -> Resul
         r#"
         tell application "Mail"
             set originalMessage to first message of inbox whose id is {}
-            set replyMessage to reply originalMessage without opening window
+            set replyMessage to reply originalMessage with opening window
+            delay 0.5
             set content of replyMessage to "{}" & return & return & content of replyMessage
             send replyMessage
         end tell
@@ -374,7 +375,9 @@ pub fn forward_message(message_id: &str, to: &str, body: &str) -> Result<(), Mai
         String::new()
     } else {
         format!(
-            r#"set content of fwdMessage to "{}" & return & return & content of fwdMessage"#,
+            r#"
+            delay 0.5
+            set content of fwdMessage to "{}" & return & return & content of fwdMessage"#,
             escaped_body
         )
     };
@@ -383,7 +386,7 @@ pub fn forward_message(message_id: &str, to: &str, body: &str) -> Result<(), Mai
         r#"
         tell application "Mail"
             set originalMessage to first message of inbox whose id is {}
-            set fwdMessage to forward originalMessage without opening window
+            set fwdMessage to forward originalMessage with opening window
             tell fwdMessage
                 make new to recipient at end of to recipients with properties {{address:"{}"}}
             end tell

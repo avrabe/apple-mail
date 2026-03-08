@@ -346,15 +346,18 @@ pub fn compose_new_email(to: &str, subject: &str, body: &str) -> Result<(), Mail
 /// Reply to a message
 pub fn reply_to_message(message_id: &str, body: &str, _reply_all: bool) -> Result<(), MailError> {
     let clean_id = message_id.split(':').next().unwrap_or(message_id).trim();
-    let escaped_body = body.replace('"', "\\\"");
+    let escaped_body = body.replace('"', "\\\"").replace('\n', "\" & return & \"");
 
     let script = format!(
         r#"
         tell application "Mail"
             set originalMessage to first message of inbox whose id is {}
-            set replyMessage to reply originalMessage with opening window
-            delay 0.5
-            set content of replyMessage to "{}" & return & return & content of replyMessage
+            set origSender to sender of originalMessage
+            set origDate to date received of originalMessage as string
+            set origContent to content of originalMessage
+            set quotedHeader to return & return & "On " & origDate & ", " & origSender & " wrote:" & return & return
+            set replyMessage to reply originalMessage without opening window
+            set content of replyMessage to "{}" & quotedHeader & origContent
             send replyMessage
         end tell
     "#,
@@ -371,30 +374,32 @@ pub fn forward_message(message_id: &str, to: &str, body: &str) -> Result<(), Mai
     let escaped_to = to.replace('"', "\\\"");
     let escaped_body = body.replace('"', "\\\"");
 
-    let body_insert = if body.is_empty() {
+    let escaped_body = escaped_body.replace('\n', "\" & return & \"");
+
+    let body_prefix = if body.is_empty() {
         String::new()
     } else {
-        format!(
-            r#"
-            delay 0.5
-            set content of fwdMessage to "{}" & return & return & content of fwdMessage"#,
-            escaped_body
-        )
+        format!(r#""{}" & return & return & "#, escaped_body)
     };
 
     let script = format!(
         r#"
         tell application "Mail"
             set originalMessage to first message of inbox whose id is {}
-            set fwdMessage to forward originalMessage with opening window
+            set origSender to sender of originalMessage
+            set origDate to date received of originalMessage as string
+            set origSubject to subject of originalMessage
+            set origContent to content of originalMessage
+            set fwdHeader to "---------- Forwarded message ----------" & return & "From: " & origSender & return & "Date: " & origDate & return & "Subject: " & origSubject & return & return
+            set fwdMessage to forward originalMessage without opening window
             tell fwdMessage
                 make new to recipient at end of to recipients with properties {{address:"{}"}}
             end tell
-            {}
+            set content of fwdMessage to {}fwdHeader & origContent
             send fwdMessage
         end tell
     "#,
-        clean_id, escaped_to, body_insert
+        clean_id, escaped_to, body_prefix
     );
 
     execute_applescript(&script)?;

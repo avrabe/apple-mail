@@ -329,11 +329,11 @@ pub fn compose_new_email(to: &str, subject: &str, body: &str) -> Result<(), Mail
     let script = format!(
         r#"
         tell application "Mail"
-            activate
-            set newMessage to make new outgoing message with properties {{subject:"{}", content:"{}", visible:true}}
+            set newMessage to make new outgoing message with properties {{subject:"{}", content:"{}", visible:false}}
             tell newMessage
                 make new to recipient at end of to recipients with properties {{address:"{}"}}
             end tell
+            send newMessage
         end tell
     "#,
         escaped_subject, escaped_body, escaped_to
@@ -351,10 +351,10 @@ pub fn reply_to_message(message_id: &str, body: &str, _reply_all: bool) -> Resul
     let script = format!(
         r#"
         tell application "Mail"
-            activate
             set originalMessage to first message of inbox whose id is {}
-            set replyMessage to reply originalMessage with opening window
+            set replyMessage to reply originalMessage without opening window
             set content of replyMessage to "{}" & return & return & content of replyMessage
+            send replyMessage
         end tell
     "#,
         clean_id, escaped_body
@@ -382,13 +382,13 @@ pub fn forward_message(message_id: &str, to: &str, body: &str) -> Result<(), Mai
     let script = format!(
         r#"
         tell application "Mail"
-            activate
             set originalMessage to first message of inbox whose id is {}
-            set fwdMessage to forward originalMessage with opening window
+            set fwdMessage to forward originalMessage without opening window
             tell fwdMessage
                 make new to recipient at end of to recipients with properties {{address:"{}"}}
             end tell
             {}
+            send fwdMessage
         end tell
     "#,
         clean_id, escaped_to, body_insert

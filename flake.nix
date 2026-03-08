@@ -7,7 +7,7 @@
   };
 
   outputs = { self, nixpkgs, flake-utils }:
-    flake-utils.lib.eachDefaultSystem (system:
+    (flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs { inherit system; };
       in {
@@ -21,16 +21,16 @@
         apps.default = flake-utils.lib.mkApp {
           drv = self.packages.${system}.default;
         };
-
-        openclawPlugin = {
-          name = "apple-mail";
-          skills = [ ./skills/apple-mail ];
-          packages = [ self.packages.${system}.default ];
-          needs = {
-            stateDirs = [];
-            requiredEnv = [];
-          };
-        };
       }
-    );
+    )) // {
+      openclawPlugin = system: {
+        name = "apple-mail";
+        skills = [ ./skills/apple-mail ];
+        packages = [ self.packages.${system}.default ];
+        needs = {
+          stateDirs = [];
+          requiredEnv = [];
+        };
+      };
+    };
 }
